@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="pl">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>AI Video Editor</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <section class="editor">
+        <header class="topbar">
+          <div>
+            <p class="eyebrow">AI Video Editor</p>
+            <h1>Edytuj wideo komendami</h1>
+          </div>
+          <button id="renderButton" class="primary-button" type="button" disabled>
+            Renderuj
+          </button>
+        </header>
+
+        <div class="workspace">
+          <section class="preview-panel" aria-label="Podglad wideo">
+            <div class="video-frame">
+              <video id="videoPreview" controls playsinline></video>
+              <div id="emptyState" class="empty-state">
+                <span>Wrzuc film, potem wpisz albo podyktuj polecenie.</span>
+              </div>
+            </div>
+
+            <div class="upload-row">
+              <label class="file-control">
+                <input id="videoInput" type="file" accept="video/*" />
+                <span>Wybierz wideo</span>
+              </label>
+              <label class="file-control secondary">
+                <input id="imageInput" type="file" accept="image/*" />
+                <span>Dodaj obrazek</span>
+              </label>
+            </div>
+          </section>
+
+          <aside class="command-panel" aria-label="Komendy edycji">
+            <div class="prompt-box">
+              <label for="promptInput">Polecenie</label>
+              <textarea
+                id="promptInput"
+                rows="7"
+                placeholder="Np. Usun trzy pierwsze sekundy filmu, usun od 30 do 35 sekundy, dodaj filtr czarno-bialy i dodaj obrazek w prawym dolnym rogu."
+              ></textarea>
+              <div class="button-row">
+                <button id="parseButton" type="button">Uloz plan</button>
+                <button id="micButton" type="button" class="icon-button" title="Dyktuj polecenie">
+                  <span aria-hidden="true">REC</span>
+                  <span>Dyktuj</span>
+                </button>
+              </div>
+            </div>
+
+            <section class="plan-panel">
+              <div class="panel-heading">
+                <h2>Plan edycji</h2>
+                <button id="clearButton" type="button">Wyczysc</button>
+              </div>
+              <ol id="planList" class="plan-list"></ol>
+            </section>
+
+            <section class="status-panel" aria-live="polite">
+              <h2>Status</h2>
+              <p id="statusText">Czekam na wideo.</p>
+              <a id="downloadLink" class="download-link" hidden>Pobierz wynik</a>
+            </section>
+          </aside>
+        </div>
+      </section>
+    </main>
+
+    <script src="https://unpkg.com/@ffmpeg/ffmpeg@0.12.10/dist/umd/ffmpeg.js"></script>
+    <script src="https://unpkg.com/@ffmpeg/util@0.12.1/dist/umd/index.js"></script>
+    <script src="app.js"></script>
+  </body>
+</html>
