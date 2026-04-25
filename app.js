@@ -108,12 +108,16 @@ els.clearButton.addEventListener("click", () => {
 els.renderButton.addEventListener("click", renderVideo);
 els.micButton.addEventListener("click", startDictation);
 
+if (location.protocol === "file:") {
+  setStatus("Otworz aplikacje przez http://localhost, nie bezposrednio z pliku index.html.");
+}
+
 function normalizeText(value) {
   return value
     .toLowerCase()
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
-    .replace(/ł/g, "l")
+    .replace(/\u0142/g, "l")
     .replace(/[^a-z0-9:., -]/g, " ")
     .replace(/\s+/g, " ")
     .trim();
@@ -283,6 +287,11 @@ function setStatus(message) {
 async function renderVideo() {
   if (!state.videoFile || !state.operations.length) return;
 
+  if (location.protocol === "file:") {
+    setStatus("FFmpeg.wasm nie dziala z file://. Uruchom lokalny serwer i wejdz przez http://localhost:5173.");
+    return;
+  }
+
   const needsImage = state.operations.some((operation) => operation.type === "overlay");
   if (needsImage && !state.imageFile) {
     setStatus("Plan zawiera obrazek, ale nie wybrano pliku obrazu.");
@@ -293,8 +302,14 @@ async function renderVideo() {
   els.renderButton.disabled = true;
   setStatus("Laduje silnik FFmpeg...");
 
-  const { FFmpeg } = window.FFmpeg;
-  const { toBlobURL } = window.FFmpegUtil;
+  const dependencies = getFfmpegDependencies();
+  if (!dependencies) {
+    setStatus("Nie zaladowano FFmpeg.wasm. Sprawdz internet albo blokowanie skryptow CDN.");
+    updateRenderState();
+    return;
+  }
+
+  const { FFmpeg, toBlobURL } = dependencies;
   const ffmpeg = new FFmpeg();
   ffmpeg.on("log", ({ message }) => {
     if (message) setStatus(message);
@@ -304,10 +319,17 @@ async function renderVideo() {
   });
 
   const baseUrl = "https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd";
-  await ffmpeg.load({
-    coreURL: await toBlobURL(`${baseUrl}/ffmpeg-core.js`, "text/javascript"),
-    wasmURL: await toBlobURL(`${baseUrl}/ffmpeg-core.wasm`, "application/wasm"),
-  });
+  try {
+    await ffmpeg.load({
+      coreURL: await toBlobURL(`${baseUrl}/ffmpeg-core.js`, "text/javascript"),
+      wasmURL: await toBlobURL(`${baseUrl}/ffmpeg-core.wasm`, "application/wasm"),
+    });
+  } catch (error) {
+    console.error(error);
+    setStatus("Nie udalo sie zaladowac FFmpeg.wasm. Upewnij sie, ze strona dziala przez http://localhost.");
+    updateRenderState();
+    return;
+  }
 
   const inputName = `input.${extensionFromType(state.videoFile.type, "mp4")}`;
   const imageName = state.imageFile ? `overlay.${extensionFromType(state.imageFile.type, "png")}` : null;
@@ -320,7 +342,14 @@ async function renderVideo() {
 
   const args = buildFfmpegArgs(inputName, imageName, outputName);
   setStatus("Renderowanie wystartowalo...");
-  await ffmpeg.exec(args);
+  try {
+    await ffmpeg.exec(args);
+  } catch (error) {
+    console.error(error);
+    setStatus("Renderowanie nie powiodlo sie. Szczegoly sa w konsoli przegladarki.");
+    updateRenderState();
+    return;
+  }
 
   const data = await ffmpeg.readFile(outputName);
   const blob = new Blob([data.buffer], { type: "video/mp4" });
@@ -331,6 +360,14 @@ async function renderVideo() {
   els.downloadLink.hidden = false;
   setStatus("Gotowe. Wynik jest w podgladzie i pod linkiem pobierania.");
   updateRenderState();
+}
+
+function getFfmpegDependencies() {
+  const FFmpeg = window.FFmpegWASM?.FFmpeg;
+  const toBlobURL = window.FFmpegUtil?.toBlobURL;
+
+  if (!FFmpeg || !toBlobURL) return null;
+  return { FFmpeg, toBlobURL };
 }
 
 function buildFfmpegArgs(inputName, imageName, outputName) {

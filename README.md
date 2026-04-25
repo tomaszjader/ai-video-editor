@@ -16,6 +16,8 @@ Prototyp przegladarkowego edytora wideo sterowanego tekstem albo mowa.
 
 ## Uruchomienie
 
+Nie otwieraj `index.html` bezposrednio jako `file://...`, bo FFmpeg.wasm uzywa workerow i plikow `.wasm`, ktore przegladarka blokuje w tym trybie.
+
 Najprosciej uruchomic lokalny serwer w katalogu projektu:
 
 ```powershell
