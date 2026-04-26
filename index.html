@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>AI Video Editor</title>
+    <title>AI Edytor Wideo</title>
     <link
       rel="icon"
       href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23101114'/%3E%3Cpath d='M9 8h14a3 3 0 0 1 3 3v10a3 3 0 0 1-3 3H9a3 3 0 0 1-3-3V11a3 3 0 0 1 3-3Z' fill='%233fbf8f'/%3E%3Cpath d='m14 12 7 4-7 4v-8Z' fill='%2305130e'/%3E%3C/svg%3E"
@@ -15,8 +15,8 @@
       <section class="editor">
         <header class="topbar">
           <div>
-            <p class="eyebrow">AI Video Editor</p>
-            <h1>Edytuj wideo komendami</h1>
+            <p class="eyebrow">AI Edytor Wideo</p>
+            <h1>Edytuj film poleceniami</h1>
           </div>
           <button id="renderButton" class="primary-button" type="button" disabled>
             Renderuj
@@ -42,6 +42,21 @@
                 <span>Dodaj obrazek</span>
               </label>
             </div>
+
+            <div class="quick-prompts" aria-label="Szybkie polecenia">
+              <button type="button" data-prompt="Usun pierwsze 3 sekundy i dodaj cieple kolory.">
+                Usun poczatek
+              </button>
+              <button type="button" data-prompt="Dodaj efekt kinowy, wiekszy kontrast i przyciemnij lekko film.">
+                Efekt kinowy
+              </button>
+              <button type="button" data-prompt="Dodaj tekst AI EDIT w lewym gornym rogu.">
+                Dodaj tekst
+              </button>
+              <button type="button" data-prompt="Usun osobe z tla i uzupelnij brakujace tlo.">
+                Usun obiekt
+              </button>
+            </div>
           </section>
 
           <aside class="command-panel" aria-label="Komendy edycji">
@@ -50,10 +65,10 @@
               <textarea
                 id="promptInput"
                 rows="7"
-                placeholder="Np. Usun trzy pierwsze sekundy filmu, usun od 30 do 35 sekundy, dodaj filtr czarno-bialy i dodaj obrazek w prawym dolnym rogu."
+                placeholder="Np. Usun osobe z tla, wytnij od 00:10 do 00:20, dodaj filtr kinowy, wstaw logo w rogu i dodaj napisy po polsku."
               ></textarea>
               <div class="button-row">
-                <button id="parseButton" type="button">Uloz plan</button>
+                <button id="parseButton" type="button">Uloz plan AI</button>
                 <button id="micButton" type="button" class="icon-button" title="Dyktuj polecenie">
                   <span aria-hidden="true">REC</span>
                   <span>Dyktuj</span>
@@ -74,13 +89,18 @@
               <p id="statusText">Czekam na wideo.</p>
               <a id="downloadLink" class="download-link" hidden>Pobierz wynik</a>
             </section>
+
+            <section class="help-panel">
+              <h2>Rozumiem m.in.</h2>
+              <p>usun od 5 do 8 sekundy, usun osobe z tla, dodaj napisy po polsku, czarno-bialy, kinowy, blur, wyostrz, zwolnij, wycisz, dodaj tekst, dodaj obrazek.</p>
+            </section>
           </aside>
         </div>
       </section>
     </main>
 
-    <script src="https://unpkg.com/@ffmpeg/ffmpeg@0.12.10/dist/umd/ffmpeg.js"></script>
-    <script src="https://unpkg.com/@ffmpeg/util@0.12.1/dist/umd/index.js"></script>
+    <script src="/vendor/ffmpeg/ffmpeg/dist/umd/ffmpeg.js"></script>
+    <script src="/vendor/ffmpeg/util/dist/umd/index.js"></script>
     <script src="app.js"></script>
   </body>
 </html>

@@ -8,6 +8,8 @@
   --line: #383d47;
   --accent: #3fbf8f;
   --accent-strong: #2aa978;
+  --warm: #f0b35b;
+  --blue: #62a8ff;
   --danger: #ff7b6e;
 }
 
@@ -23,7 +25,7 @@ body {
     sans-serif;
   color: var(--text);
   background:
-    linear-gradient(180deg, rgba(63, 191, 143, 0.12), transparent 340px),
+    linear-gradient(180deg, rgba(63, 191, 143, 0.1), transparent 300px),
     var(--bg);
 }
 
@@ -41,10 +43,15 @@ button {
   border-radius: 7px;
   padding: 0 14px;
   cursor: pointer;
+  transition:
+    border-color 160ms ease,
+    background 160ms ease,
+    transform 160ms ease;
 }
 
 button:hover:not(:disabled) {
   border-color: var(--accent);
+  transform: translateY(-1px);
 }
 
 button:disabled {
@@ -94,7 +101,8 @@ p {
 
 h1 {
   margin-bottom: 0;
-  font-size: clamp(2rem, 4vw, 4rem);
+  max-width: 760px;
+  font-size: clamp(2rem, 4vw, 3.8rem);
   line-height: 1;
 }
 
@@ -131,7 +139,10 @@ h2 {
   aspect-ratio: 16 / 9;
   border: 1px solid var(--line);
   border-radius: 8px;
-  background: #050608;
+  background:
+    linear-gradient(135deg, rgba(98, 168, 255, 0.12), transparent 32%),
+    #050608;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.28);
 }
 
 video {
@@ -149,6 +160,11 @@ video {
   padding: 24px;
   color: var(--muted);
   text-align: center;
+}
+
+.empty-state span {
+  max-width: 360px;
+  line-height: 1.5;
 }
 
 .upload-row {
@@ -192,7 +208,8 @@ video {
 
 .prompt-box,
 .plan-panel,
-.status-panel {
+.status-panel,
+.help-panel {
   border: 1px solid var(--line);
   border-radius: 8px;
   background: rgba(26, 28, 33, 0.94);
@@ -208,6 +225,7 @@ label {
 
 textarea {
   width: 100%;
+  min-height: 160px;
   resize: vertical;
   border: 1px solid var(--line);
   border-radius: 7px;
@@ -227,9 +245,14 @@ textarea:focus {
   flex-wrap: wrap;
 }
 
+.button-row button {
+  flex: 1 1 140px;
+}
+
 .icon-button {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 8px;
 }
 
@@ -270,7 +293,9 @@ textarea:focus {
   padding: 10px 12px;
   border: 1px solid var(--line);
   border-radius: 7px;
-  background: #13161b;
+  background:
+    linear-gradient(90deg, rgba(63, 191, 143, 0.1), transparent 45%),
+    #13161b;
 }
 
 .plan-list strong {
@@ -282,7 +307,9 @@ textarea:focus {
   color: var(--muted);
 }
 
-.status-panel p {
+.status-panel p,
+.help-panel p {
+  margin-bottom: 0;
   color: var(--muted);
   line-height: 1.45;
 }
@@ -297,6 +324,28 @@ textarea:focus {
   background: var(--accent);
   font-weight: 800;
   text-decoration: none;
+}
+
+.quick-prompts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.quick-prompts button {
+  min-height: 36px;
+  padding: 0 12px;
+  color: var(--muted);
+  background: rgba(34, 37, 44, 0.72);
+}
+
+.quick-prompts button:nth-child(2) {
+  border-color: rgba(240, 179, 91, 0.42);
+}
+
+.quick-prompts button:nth-child(3) {
+  border-color: rgba(98, 168, 255, 0.42);
 }
 
 @media (max-width: 920px) {
@@ -315,5 +364,27 @@ textarea:focus {
 
   .command-panel {
     width: 100%;
+  }
+}
+
+@media (max-width: 560px) {
+  .app-shell {
+    padding: 12px;
+  }
+
+  .upload-row,
+  .quick-prompts {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .file-control,
+  .quick-prompts button,
+  .primary-button {
+    width: 100%;
+  }
+
+  h1 {
+    font-size: 2rem;
   }
 }
