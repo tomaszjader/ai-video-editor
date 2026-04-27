@@ -9,6 +9,7 @@ Prototyp narzedzia typu text-to-video editing: uzytkownik wpisuje polecenie, AI 
 - backend `/api/ai/plan` z OpenAI Responses API,
 - analiza polecenia tekstowego i kilku klatek filmu,
 - plan operacji w JSON: ciecia, filtry, logo, tekst, tempo, audio, napisy, usuwanie obiektow,
+- reczna korekta planu: wlaczanie, wylaczanie, usuwanie oraz edycja czasu ciecia i tekstu,
 - render w przegladarce dla prostych operacji FFmpeg,
 - oznaczanie operacji wymagajacych backendu AI, np. usuniecie osoby z tla, segmentacja, inpainting, automatyczne napisy.
 

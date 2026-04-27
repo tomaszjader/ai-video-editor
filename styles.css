@@ -31,7 +31,8 @@ body {
 
 button,
 textarea,
-input {
+input,
+select {
   font: inherit;
 }
 
@@ -298,13 +299,75 @@ textarea:focus {
     #13161b;
 }
 
+.plan-list li.is-disabled {
+  opacity: 0.58;
+}
+
+.plan-item-header,
+.plan-actions,
+.plan-edit-grid {
+  display: flex;
+  gap: 8px;
+}
+
+.plan-item-header {
+  align-items: start;
+  justify-content: space-between;
+}
+
+.plan-actions {
+  flex: 0 0 auto;
+}
+
+.plan-actions button {
+  min-height: 30px;
+  padding: 0 9px;
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
 .plan-list strong {
   display: block;
   margin-bottom: 4px;
 }
 
-.plan-list span {
+.plan-detail {
+  display: block;
   color: var(--muted);
+}
+
+.plan-edit-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-top: 10px;
+}
+
+.plan-field {
+  margin-bottom: 0;
+}
+
+.plan-field span {
+  display: block;
+  margin-bottom: 5px;
+  color: var(--muted);
+  font-size: 0.76rem;
+}
+
+.plan-field input,
+.plan-field select {
+  width: 100%;
+  min-height: 34px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  padding: 0 9px;
+  color: var(--text);
+  background: #101217;
+}
+
+.plan-field input:focus,
+.plan-field select:focus {
+  outline: 2px solid rgba(63, 191, 143, 0.28);
+  border-color: var(--accent);
 }
 
 .status-panel p,
@@ -373,7 +436,8 @@ textarea:focus {
   }
 
   .upload-row,
-  .quick-prompts {
+  .quick-prompts,
+  .plan-edit-grid {
     display: grid;
     grid-template-columns: 1fr;
   }

@@ -142,6 +142,8 @@ els.quickPrompts.addEventListener("click", (event) => {
   els.promptInput.value = button.dataset.prompt;
   parsePrompt();
 });
+els.planList.addEventListener("click", handlePlanAction);
+els.planList.addEventListener("input", handlePlanInput);
 
 els.clearButton.addEventListener("click", () => {
   state.operations = [];
@@ -297,6 +299,7 @@ function normalizeAiOperations(operations) {
 
       return {
         ...operation,
+        active: operation.active !== false,
         label: operation.label || labelForOperation(operation.type),
         detail: operation.detail || operation.text || operation.mode || "operacja AI",
         start: Number.isFinite(operation.start) ? operation.start : null,
@@ -374,6 +377,7 @@ function parseCuts(prompt) {
 function parseFilters(prompt) {
   return FILTERS.filter((filter) => looksLike(prompt, filter.keys)).map((filter) => ({
     type: "filter",
+    active: true,
     label: filter.label,
     detail: filter.label,
     ffmpeg: filter.ffmpeg,
@@ -385,6 +389,7 @@ function parseSpeed(prompt) {
     return [
       {
         type: "speed",
+        active: true,
         label: "zwolnij film",
         detail: "0.5x",
         video: "setpts=2*PTS",
@@ -397,6 +402,7 @@ function parseSpeed(prompt) {
     return [
       {
         type: "speed",
+        active: true,
         label: "przyspiesz film",
         detail: "1.5x",
         video: "setpts=0.6667*PTS",
@@ -413,6 +419,7 @@ function parseAudio(prompt) {
     return [
       {
         type: "audio",
+        active: true,
         label: "wycisz audio",
         detail: "bez dzwieku",
         mode: "mute",
@@ -431,6 +438,7 @@ function parseTextOverlay(rawPrompt, prompt) {
 
   return {
     type: "text",
+    active: true,
     label: "dodaj tekst",
     detail: `${text} - ${overlayDetail(prompt)}`,
     text,
@@ -474,12 +482,14 @@ function mergeCuts(cuts) {
 
 function dedupeOperations(operations) {
   const seen = new Set();
-  return operations.filter((operation) => {
-    const key = JSON.stringify(operation);
-    if (seen.has(key)) return false;
-    seen.add(key);
-    return true;
-  });
+  return operations
+    .map((operation) => ({ active: true, ...operation }))
+    .filter((operation) => {
+      const key = JSON.stringify({ ...operation, active: undefined });
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
 }
 
 function overlayPosition(prompt) {
@@ -510,10 +520,30 @@ function overlayDetail(prompt) {
 
 function renderPlan() {
   els.planList.innerHTML = "";
-  for (const operation of state.operations) {
+  state.operations.forEach((operation, index) => {
     const item = document.createElement("li");
+    item.dataset.index = String(index);
+    item.className = operation.active === false ? "is-disabled" : "";
+
+    const header = document.createElement("div");
+    header.className = "plan-item-header";
+
     const title = document.createElement("strong");
+    const actions = document.createElement("div");
+    actions.className = "plan-actions";
+
+    const toggleButton = document.createElement("button");
+    toggleButton.type = "button";
+    toggleButton.dataset.action = "toggle";
+    toggleButton.textContent = operation.active === false ? "Wlacz" : "Wylacz";
+
+    const deleteButton = document.createElement("button");
+    deleteButton.type = "button";
+    deleteButton.dataset.action = "delete";
+    deleteButton.textContent = "Usun";
+
     const detail = document.createElement("span");
+    detail.className = "plan-detail";
 
     title.textContent = operation.label;
     const operationDetail =
@@ -525,9 +555,148 @@ function renderPlan() {
       ? `${operationDetail} (${operation.capability})`
       : operationDetail;
 
-    item.append(title, detail);
+    actions.append(toggleButton, deleteButton);
+    header.append(title, actions);
+    item.append(header, detail);
+    renderOperationControls(item, operation, index);
     els.planList.append(item);
+  });
+}
+
+function renderOperationControls(item, operation, index) {
+  if (operation.type === "cut") {
+    const controls = document.createElement("div");
+    controls.className = "plan-edit-grid";
+    controls.append(
+      numberField("Start", "start", operation.start, index),
+      numberField("Koniec", "end", operation.end, index),
+    );
+    item.append(controls);
   }
+
+  if (operation.type === "text") {
+    const controls = document.createElement("div");
+    controls.className = "plan-edit-grid";
+    controls.append(textField("Tekst", "text", operation.text, index), selectField("Pozycja", "position", operation.position, index));
+    item.append(controls);
+  }
+}
+
+function numberField(label, field, value, index) {
+  const wrapper = document.createElement("label");
+  wrapper.className = "plan-field";
+  const labelText = document.createElement("span");
+  const input = document.createElement("input");
+  labelText.textContent = label;
+  input.type = "number";
+  input.min = "0";
+  input.step = "0.1";
+  input.value = Number.isFinite(value) ? String(value) : "";
+  input.dataset.index = String(index);
+  input.dataset.field = field;
+  wrapper.append(labelText, input);
+  return wrapper;
+}
+
+function textField(label, field, value, index) {
+  const wrapper = document.createElement("label");
+  wrapper.className = "plan-field";
+  const labelText = document.createElement("span");
+  const input = document.createElement("input");
+  labelText.textContent = label;
+  input.type = "text";
+  input.maxLength = 48;
+  input.value = value || "";
+  input.dataset.index = String(index);
+  input.dataset.field = field;
+  wrapper.append(labelText, input);
+  return wrapper;
+}
+
+function selectField(label, field, value, index) {
+  const wrapper = document.createElement("label");
+  wrapper.className = "plan-field";
+  const labelText = document.createElement("span");
+  const select = document.createElement("select");
+  labelText.textContent = label;
+  select.dataset.index = String(index);
+  select.dataset.field = field;
+
+  const positions = [
+    ["x=24:y=24", "Lewy gorny"],
+    ["x=w-tw-24:y=24", "Prawy gorny"],
+    ["x=24:y=h-th-28", "Lewy dolny"],
+    ["x=w-tw-24:y=h-th-28", "Prawy dolny"],
+    ["x=(w-tw)/2:y=(h-th)/2", "Srodek"],
+  ];
+
+  for (const [optionValue, text] of positions) {
+    const option = document.createElement("option");
+    option.value = optionValue;
+    option.textContent = text;
+    option.selected = value === optionValue;
+    select.append(option);
+  }
+
+  wrapper.append(labelText, select);
+  return wrapper;
+}
+
+function handlePlanAction(event) {
+  const button = event.target.closest("[data-action]");
+  if (!button) return;
+
+  const item = button.closest("[data-index]");
+  const index = Number(item?.dataset.index);
+  if (!Number.isInteger(index) || !state.operations[index]) return;
+
+  if (button.dataset.action === "delete") {
+    state.operations.splice(index, 1);
+    setStatus("Usunieto operacje z planu.");
+  }
+
+  if (button.dataset.action === "toggle") {
+    const operation = state.operations[index];
+    operation.active = operation.active === false;
+    setStatus(operation.active ? "Operacja wlaczona." : "Operacja wylaczona.");
+  }
+
+  renderPlan();
+  updateRenderState();
+}
+
+function handlePlanInput(event) {
+  const field = event.target.dataset.field;
+  const index = Number(event.target.dataset.index);
+  const operation = state.operations[index];
+  if (!field || !operation) return;
+
+  if (field === "start" || field === "end") {
+    operation[field] = Number(event.target.value);
+    operation.detail = Number.isFinite(operation.start) && Number.isFinite(operation.end)
+      ? `${formatTime(operation.start)} - ${formatTime(operation.end)}`
+      : operation.detail;
+  } else if (field === "text") {
+    operation.text = normalizeOverlayText(event.target.value);
+    operation.detail = `${operation.text} - ${overlayDetailFromPosition(operation.position)}`;
+  } else if (field === "position") {
+    operation.position = event.target.value;
+    operation.detail = `${operation.text || "AI EDIT"} - ${overlayDetailFromPosition(operation.position)}`;
+  }
+
+  updateRenderState();
+}
+
+function overlayDetailFromPosition(position) {
+  return (
+    {
+      "x=24:y=24": "w lewym gornym rogu",
+      "x=w-tw-24:y=24": "w prawym gornym rogu",
+      "x=24:y=h-th-28": "w lewym dolnym rogu",
+      "x=w-tw-24:y=h-th-28": "w prawym dolnym rogu",
+      "x=(w-tw)/2:y=(h-th)/2": "na srodku",
+    }[position] || "w prawym dolnym rogu"
+  );
 }
 
 function formatTime(seconds) {
@@ -535,12 +704,32 @@ function formatTime(seconds) {
 }
 
 function updateRenderState() {
-  const needsImage = state.operations.some((operation) => operation.type === "overlay");
+  const activeOperations = state.operations.filter((operation) => operation.active !== false);
+  const needsImage = activeOperations.some((operation) => operation.type === "overlay");
   const hasServerOnlyOperation = state.operations.some(
-    (operation) => operation.capability && operation.capability !== "browser",
+    (operation) => operation.active !== false && operation.capability && operation.capability !== "browser",
+  );
+  const hasInvalidCut = activeOperations.some(
+    (operation) =>
+      operation.type === "cut" &&
+      (!Number.isFinite(operation.start) || !Number.isFinite(operation.end) || operation.end <= operation.start),
   );
   els.renderButton.disabled =
-    !state.videoFile || !state.operations.length || (needsImage && !state.imageFile) || hasServerOnlyOperation;
+    !state.videoFile ||
+    !activeOperations.length ||
+    (needsImage && !state.imageFile) ||
+    hasServerOnlyOperation ||
+    hasInvalidCut;
+
+  if (hasInvalidCut) {
+    els.renderButton.title = "Popraw czas ciecia: koniec musi byc pozniej niz start.";
+  } else if (hasServerOnlyOperation) {
+    els.renderButton.title = "Plan zawiera aktywne operacje wymagajace backendu.";
+  } else if (needsImage && !state.imageFile) {
+    els.renderButton.title = "Dodaj obrazek potrzebny do nakladki.";
+  } else {
+    els.renderButton.removeAttribute("title");
+  }
 }
 
 function setStatus(message) {
@@ -548,9 +737,10 @@ function setStatus(message) {
 }
 
 async function renderVideo() {
-  if (!state.videoFile || !state.operations.length) return;
+  const activeOperations = state.operations.filter((operation) => operation.active !== false);
+  if (!state.videoFile || !activeOperations.length) return;
 
-  const unsupported = state.operations.filter((operation) => operation.capability && operation.capability !== "browser");
+  const unsupported = activeOperations.filter((operation) => operation.capability && operation.capability !== "browser");
   if (unsupported.length) {
     setStatus("Ten plan zawiera operacje wymagajace backendu AI/renderingu serwerowego. Podglad planu jest gotowy, ale render w przegladarce obsluguje tylko proste operacje FFmpeg.");
     return;
@@ -561,7 +751,7 @@ async function renderVideo() {
     return;
   }
 
-  const needsImage = state.operations.some((operation) => operation.type === "overlay");
+  const needsImage = activeOperations.some((operation) => operation.type === "overlay");
   if (needsImage && !state.imageFile) {
     setStatus("Plan zawiera obrazek, ale nie wybrano pliku obrazu.");
     return;
@@ -640,12 +830,13 @@ function getFfmpegDependencies() {
 }
 
 function buildFfmpegArgs(inputName, imageName, outputName) {
-  const cuts = state.operations.filter((operation) => operation.type === "cut");
-  const filters = state.operations.filter((operation) => operation.type === "filter");
-  const speed = state.operations.find((operation) => operation.type === "speed");
-  const mute = state.operations.some((operation) => operation.type === "audio" && operation.mode === "mute");
-  const overlay = state.operations.find((operation) => operation.type === "overlay");
-  const text = state.operations.find((operation) => operation.type === "text");
+  const activeOperations = state.operations.filter((operation) => operation.active !== false);
+  const cuts = activeOperations.filter((operation) => operation.type === "cut");
+  const filters = activeOperations.filter((operation) => operation.type === "filter");
+  const speed = activeOperations.find((operation) => operation.type === "speed");
+  const mute = activeOperations.some((operation) => operation.type === "audio" && operation.mode === "mute");
+  const overlay = activeOperations.find((operation) => operation.type === "overlay");
+  const text = activeOperations.find((operation) => operation.type === "text");
   const args = ["-i", inputName];
 
   if (overlay && imageName) args.push("-i", imageName);
