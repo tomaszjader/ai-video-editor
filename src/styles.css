@@ -29,6 +29,10 @@ body {
     var(--bg);
 }
 
+#root {
+  min-height: 100vh;
+}
+
 button,
 textarea,
 input,

@@ -3,13 +3,18 @@ import OpenAI from "openai";
 import "dotenv/config";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { createServer as createHttpServer } from "node:http";
+import { createServer as createViteServer } from "vite";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const port = Number(process.env.PORT || 5173);
+const preferredPort = Number(process.env.PORT || 5173);
 const model = process.env.OPENAI_MODEL || "gpt-5.5";
+const isProduction = process.env.NODE_ENV === "production";
+const apiKey = process.env.OPENAI_API_KEY || "";
 
 const app = express();
+const httpServer = createHttpServer(app);
 app.use((req, res, next) => {
   res.setHeader("Access-Control-Allow-Origin", req.headers.origin || "*");
   res.setHeader("Vary", "Origin");
@@ -27,7 +32,6 @@ app.use(express.json({ limit: "24mb" }));
 app.use("/vendor/ffmpeg/ffmpeg", express.static(path.join(__dirname, "node_modules/@ffmpeg/ffmpeg")));
 app.use("/vendor/ffmpeg/core", express.static(path.join(__dirname, "node_modules/@ffmpeg/core")));
 app.use("/vendor/ffmpeg/util", express.static(path.join(__dirname, "node_modules/@ffmpeg/util")));
-app.use(express.static(__dirname));
 
 const operationSchema = {
   type: "object",
@@ -64,15 +68,15 @@ const planSchema = {
 app.get("/api/health", (_req, res) => {
   res.json({
     ok: true,
-    ai: Boolean(process.env.OPENAI_API_KEY),
+    ai: hasUsableOpenAiKey(),
     model,
   });
 });
 
 app.post("/api/ai/plan", async (req, res) => {
-  if (!process.env.OPENAI_API_KEY) {
+  if (!hasUsableOpenAiKey()) {
     res.status(503).json({
-      error: "Brak OPENAI_API_KEY. Utworz .env albo ustaw zmienna srodowiskowa przed uruchomieniem serwera.",
+      error: "Brak poprawnego OPENAI_API_KEY. Wpisz prawdziwy klucz w .env i uruchom serwer ponownie.",
     });
     return;
   }
@@ -83,7 +87,7 @@ app.post("/api/ai/plan", async (req, res) => {
     return;
   }
 
-  const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+  const client = new OpenAI({ apiKey });
   const content = [
     {
       type: "input_text",
@@ -145,6 +149,68 @@ app.post("/api/ai/plan", async (req, res) => {
   }
 });
 
-app.listen(port, () => {
-  console.log(`AI Video Editor: http://localhost:${port}`);
-});
+if (isProduction) {
+  app.use(express.static(path.join(__dirname, "dist")));
+  app.get("*", (_req, res) => {
+    res.sendFile(path.join(__dirname, "dist", "index.html"));
+  });
+} else {
+  const vite = await createViteServer({
+    server: {
+      middlewareMode: true,
+      hmr: { server: httpServer },
+    },
+    appType: "spa",
+  });
+  app.use(vite.middlewares);
+}
+
+const port = await listenOnAvailablePort(httpServer, preferredPort);
+console.log(`AI Video Editor: http://localhost:${port}`);
+
+async function listenOnAvailablePort(server, portToTry) {
+  const maxAttempts = 10;
+
+  for (let offset = 0; offset < maxAttempts; offset += 1) {
+    const candidate = portToTry + offset;
+
+    try {
+      await listenOnce(server, candidate);
+      if (candidate !== portToTry) {
+        console.warn(`Port ${portToTry} jest zajety. Uzywam http://localhost:${candidate}`);
+      }
+      return candidate;
+    } catch (error) {
+      if (error.code !== "EADDRINUSE" || offset === maxAttempts - 1) {
+        throw error;
+      }
+    }
+  }
+
+  throw new Error(`Nie znaleziono wolnego portu od ${portToTry} do ${portToTry + maxAttempts - 1}.`);
+}
+
+function listenOnce(server, portToTry) {
+  return new Promise((resolve, reject) => {
+    const cleanup = () => {
+      server.off("error", onError);
+      server.off("listening", onListening);
+    };
+    const onError = (error) => {
+      cleanup();
+      reject(error);
+    };
+    const onListening = () => {
+      cleanup();
+      resolve();
+    };
+
+    server.once("error", onError);
+    server.once("listening", onListening);
+    server.listen(portToTry);
+  });
+}
+
+function hasUsableOpenAiKey() {
+  return Boolean(apiKey && apiKey.startsWith("sk-") && !apiKey.includes("your-key-here"));
+}

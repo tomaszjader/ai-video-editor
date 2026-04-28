@@ -6,7 +6,7 @@ Aplikacja ma dzialac jak edytor text-to-video: uzytkownik opisuje oczekiwana zmi
 
 ## Warstwy
 
-1. Frontend
+1. Frontend React
    - wybiera plik wideo,
    - pokazuje podglad,
    - probkuje klatki do analizy AI,
@@ -29,7 +29,7 @@ Aplikacja ma dzialac jak edytor text-to-video: uzytkownik opisuje oczekiwana zmi
 - NLP / planowanie: model tekstowo-wizyjny przez Responses API.
 - Analiza obrazu: wysylanie klatek jako `input_image`.
 - Audio: Speech to Text dla transkrypcji i napisow.
-- Generowanie / edycja obrazu: GPT Image do generowania lub uzupelniania elementow, z zastrzezeniem ze stabilne usuwanie obiektu w wideo wymaga spójnych masek i temporal consistency.
+- Generowanie / edycja obrazu: GPT Image do generowania lub uzupelniania elementow, z zastrzezeniem ze stabilne usuwanie obiektu w wideo wymaga spojnych masek i temporal consistency.
 - Rendering: FFmpeg lokalnie dla prostych operacji, FFmpeg serwerowo dla dlugich i zlozonych zadan.
 
 ## Plan operacji

@@ -1,6 +1,6 @@
 # AI Edytor Wideo
 
-Prototyp narzedzia typu text-to-video editing: uzytkownik wpisuje polecenie, AI analizuje tekst oraz probki obrazu z filmu, a aplikacja uklada plan edycji i renderuje operacje mozliwe lokalnie przez FFmpeg.wasm.
+Prototyp narzedzia typu text-to-video editing z frontendem w React: uzytkownik wpisuje polecenie, AI analizuje tekst oraz probki obrazu z filmu, a aplikacja uklada plan edycji i renderuje operacje mozliwe lokalnie przez FFmpeg.wasm.
 
 ## Co dziala teraz
 
@@ -55,7 +55,13 @@ http://localhost:5173
 
 Najprosciej korzystac wlasnie z tego adresu, bo ten sam serwer obsluguje frontend i API.
 
-Jesli uruchamiasz `index.html` przez VS Code Live Server, np. `http://127.0.0.1:5500`, backend Node nadal musi dzialac osobno przez `npm run dev`. Frontend sprobuje wtedy automatycznie znalezc API pod `http://localhost:5173` albo `http://localhost:5174`.
+Aplikacja jest budowana przez Vite, wiec nie uruchamiaj `index.html` bezposrednio ani przez Live Server. Uzyj `npm run dev`, zeby miec React, API i lokalne pliki FFmpeg pod jednym adresem.
+
+Build produkcyjny:
+
+```powershell
+npm run build
+```
 
 ## Typowe problemy
 
@@ -79,7 +85,7 @@ Dodaj napisy po polsku i wstaw logo w prawym dolnym rogu.
 
 ## Jak to jest zaprojektowane
 
-Frontend probkuje kilka klatek z filmu przez canvas i wysyla je razem z poleceniem do backendu. Backend nie dostaje klucza z przegladarki, tylko sam wywoluje OpenAI Responses API i wymusza odpowiedz zgodna ze schematem planu edycji.
+Frontend React probkuje kilka klatek z filmu przez canvas i wysyla je razem z poleceniem do backendu. Backend nie dostaje klucza z przegladarki, tylko sam wywoluje OpenAI Responses API i wymusza odpowiedz zgodna ze schematem planu edycji.
 
 Operacje oznaczone `browser` moga byc renderowane lokalnie przez FFmpeg.wasm. Operacje oznaczone `server_required` albo `ai_required` sa poprawnie rozpoznawane, ale wymagaja kolejnego etapu: serwerowego renderingu FFmpeg, segmentacji, inpaintingu, OCR/ASR albo generowania obrazu.
 
