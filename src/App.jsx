@@ -23,10 +23,10 @@ const NUMBER_WORDS = new Map([
 ]);
 
 const QUICK_PROMPTS = [
-  ["Usun poczatek", "Usun pierwsze 3 sekundy i dodaj cieple kolory."],
+  ["Usun poczatek", "Usuń pierwsze 3 sekundy i dodaj ciepłe kolory."],
   ["Efekt kinowy", "Dodaj efekt kinowy, wiekszy kontrast i przyciemnij lekko film."],
   ["Dodaj tekst", "Dodaj tekst AI EDIT w lewym gornym rogu."],
-  ["Usun obiekt", "Usun osobe z tla i uzupelnij brakujace tlo."],
+  ["Usun obiekt", "Usuń osobę z tła i uzupełnij brakujące tło."],
 ];
 
 const TEXT_POSITIONS = [
@@ -192,22 +192,41 @@ export default function App() {
 
   async function renderVideo() {
     const activeOperations = operations.filter((operation) => operation.active !== false);
-    if (!videoFile || !activeOperations.length) return;
-
     const unsupported = activeOperations.filter((operation) => operation.capability && operation.capability !== "browser");
-    if (unsupported.length) {
-      setStatus("Ten plan zawiera operacje wymagajace backendu AI/renderingu serwerowego. Podglad planu jest gotowy, ale render w przegladarce obsluguje tylko proste operacje FFmpeg.");
+    const renderableOperations = activeOperations.filter((operation) => !operation.capability || operation.capability === "browser");
+
+    if (!videoFile) {
+      setStatus("Najpierw wczytaj plik wideo.");
+      return;
+    }
+
+    if (!activeOperations.length) {
+      setStatus("Plan nie ma aktywnych operacji do renderowania.");
+      return;
+    }
+
+    if (!renderableOperations.length) {
+      const labels = unsupported.map((operation) => operation.label).join(", ");
+      setStatus(`Tego planu nie da sie jeszcze wyrenderowac w przegladarce: ${labels}. Potrzebny jest backend do AI/renderingu serwerowego.`);
+      return;
+    }
+
+    const invalidCut = renderableOperations.find(
+      (operation) => operation.type === "cut" && (!Number.isFinite(operation.start) || !Number.isFinite(operation.end) || operation.end <= operation.start),
+    );
+    if (invalidCut) {
+      setStatus("Popraw czas ciecia: koniec musi byc pozniej niz start.");
+      return;
+    }
+
+    const needsImage = renderableOperations.some((operation) => operation.type === "overlay");
+    if (needsImage && !imageFile) {
+      setStatus("Plan zawiera obrazek, ale nie wybrano pliku obrazu.");
       return;
     }
 
     if (location.protocol === "file:") {
       setStatus("FFmpeg.wasm nie dziala z file://. Uruchom lokalny serwer i wejdz przez http://localhost:5173.");
-      return;
-    }
-
-    const needsImage = activeOperations.some((operation) => operation.type === "overlay");
-    if (needsImage && !imageFile) {
-      setStatus("Plan zawiera obrazek, ale nie wybrano pliku obrazu.");
       return;
     }
 
@@ -223,11 +242,15 @@ export default function App() {
     }
 
     try {
+      if (unsupported.length) {
+        const labels = unsupported.map((operation) => operation.label).join(", ");
+        setStatus(`Renderuje operacje mozliwe w przegladarce. Pomijam na razie: ${labels}.`);
+      }
       const data = await runFfmpegRender({
         dependencies,
         videoFile,
         imageFile,
-        activeOperations,
+        activeOperations: renderableOperations,
         setStatus,
       });
       const blob = new Blob([data.buffer], { type: "video/mp4" });
@@ -280,7 +303,7 @@ export default function App() {
             <p className="eyebrow">AI Edytor Wideo</p>
             <h1>Edytuj film poleceniami</h1>
           </div>
-          <button className="primary-button" type="button" disabled={renderState.disabled || isRendering} title={renderState.title} onClick={renderVideo}>
+          <button className="primary-button" type="button" disabled={isRendering} title={renderState.title} onClick={renderVideo}>
             {isRendering ? "Renderuje..." : "Renderuj"}
           </button>
         </header>
@@ -330,7 +353,7 @@ export default function App() {
                   setPrompt(event.target.value);
                   if (!event.target.value.trim()) applyLocalPlan("");
                 }}
-                placeholder="Np. Usun osobe z tla, wytnij od 00:10 do 00:20, dodaj filtr kinowy, wstaw logo w rogu i dodaj napisy po polsku."
+                placeholder="Np. Usuń osobę z tła, wytnij od 00:10 do 00:20, dodaj filtr kinowy, wstaw logo w rogu i dodaj napisy po polsku."
               />
               <div className="button-row">
                 <button type="button" disabled={isPlanning} onClick={planWithAi}>
@@ -452,6 +475,8 @@ function parsePromptToOperations(rawPrompt) {
   operations.push(...parseFilters(prompt));
   operations.push(...parseSpeed(prompt));
   operations.push(...parseAudio(prompt));
+  operations.push(...parseSubtitles(prompt));
+  operations.push(...parseObjectRemoval(prompt));
 
   const textOverlay = parseTextOverlay(rawPrompt, prompt);
   if (textOverlay) operations.push(textOverlay);
@@ -577,10 +602,36 @@ function parseAudio(prompt) {
   return [];
 }
 
+function parseSubtitles(prompt) {
+  if (!looksLike(prompt, ["napisy", "transkrypcja", "podpisy dialogow", "subtitles"])) return [];
+  const language = looksLike(prompt, ["po polsku", "polskie", "pl"]) ? "po polsku" : "z transkrypcji audio";
+  return [{
+    type: "subtitles",
+    active: true,
+    label: "dodaj napisy",
+    detail: `napisy ${language}`,
+    capability: "server_required",
+    mode: language,
+  }];
+}
+
+function parseObjectRemoval(prompt) {
+  if (!looksLike(prompt, ["usun osobe", "usun obiekt", "usun przedmiot", "wymaz osobe", "wymaz obiekt", "usun cos z tla"])) return [];
+  return [{
+    type: "object_removal",
+    active: true,
+    label: "usun obiekt",
+    detail: "wymaga segmentacji, maskowania i inpaintingu klatek",
+    capability: "ai_required",
+    mode: "segmentation_inpainting",
+  }];
+}
+
 function parseTextOverlay(rawPrompt, prompt) {
+  if (looksLike(prompt, ["napisy", "subtitles", "transkrypcja"])) return null;
   if (!looksLike(prompt, ["tekst", "napis", "podpis", "tytul"])) return null;
   const quoted = rawPrompt.match(/["'„”](.+?)["'„”]/);
-  const afterKeyword = rawPrompt.match(/(?:tekst|napis|podpis|tytul)\s+(.+?)(?:\s+(?:na srodku|w centrum|w lewym|w prawym|u gory|na dole)|$)/i);
+  const afterKeyword = normalizeText(rawPrompt).match(/(?:tekst|napis|podpis|tytul)\s+(.+?)(?:\s+(?:na srodku|w centrum|w lewym|w prawym|u gory|na dole)|$)/i);
   const text = normalizeOverlayText(quoted?.[1] || afterKeyword?.[1] || "AI EDIT");
 
   return {
@@ -684,12 +735,13 @@ function getRenderState(videoFile, imageFile, operations) {
   );
 
   let title = "";
-  if (hasInvalidCut) title = "Popraw czas ciecia: koniec musi byc pozniej niz start.";
+  if (!videoFile) title = "Najpierw wczytaj plik wideo.";
+  else if (!activeOperations.length) title = "Plan nie ma aktywnych operacji.";
+  else if (hasInvalidCut) title = "Popraw czas ciecia: koniec musi byc pozniej niz start.";
   else if (hasServerOnlyOperation) title = "Plan zawiera aktywne operacje wymagajace backendu.";
   else if (needsImage && !imageFile) title = "Dodaj obrazek potrzebny do nakladki.";
 
   return {
-    disabled: !videoFile || !activeOperations.length || (needsImage && !imageFile) || hasServerOnlyOperation || hasInvalidCut,
     title,
   };
 }

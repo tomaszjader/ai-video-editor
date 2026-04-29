@@ -12,17 +12,24 @@ const preferredPort = Number(process.env.PORT || 5173);
 const model = process.env.OPENAI_MODEL || "gpt-5.5";
 const isProduction = process.env.NODE_ENV === "production";
 const apiKey = process.env.OPENAI_API_KEY || "";
+const allowedOrigins = (process.env.CORS_ORIGIN || "http://localhost:5173,http://127.0.0.1:5173")
+  .split(",")
+  .map((origin) => origin.trim())
+  .filter(Boolean);
 
 const app = express();
 const httpServer = createHttpServer(app);
 app.use((req, res, next) => {
-  res.setHeader("Access-Control-Allow-Origin", req.headers.origin || "*");
-  res.setHeader("Vary", "Origin");
+  const origin = req.headers.origin;
+  if (origin && allowedOrigins.includes(origin)) {
+    res.setHeader("Access-Control-Allow-Origin", origin);
+    res.setHeader("Vary", "Origin");
+  }
   res.setHeader("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type,Authorization");
 
   if (req.method === "OPTIONS") {
-    res.sendStatus(204);
+    res.sendStatus(!origin || allowedOrigins.includes(origin) ? 204 : 403);
     return;
   }
 

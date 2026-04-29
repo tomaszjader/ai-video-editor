@@ -76,7 +76,7 @@ Wytnij fragment od 00:10 do 00:20 i dodaj filtr kinowy.
 ```
 
 ```text
-Usun osobe z tla i uzupelnij brakujace tlo.
+Usuń osobę z tła i uzupełnij brakujące tło.
 ```
 
 ```text
